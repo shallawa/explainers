@@ -4,6 +4,18 @@ HTML canvas currently offers only limited text support. As 2D canvas is increasi
 
 Other alternatives, like combining HTML-in-Canvas with SVG, fall short for sophisticated use cases. HTML-in-Canvas can render complex scripts flawlessly, but it lacks fundamental text-processing capabilities such as caret positioning, hit-testing, and computing selection rectangles. Building a text-on-path editor like the one in this [demo](https://demos.skia.org/demo/canvas_edit/) page is best achieved through the `HTMLCanvasElement` API—but doing so requires adding text shaping support to `CanvasText`.
 
+## Text Processing Main Functionalities 
+
+These are the core capabilities an editor or word processor's interactive UI needs to provide for text editing:
+
+1. Displaying (e.g. fillText() and strokeText())
+2. Measuring (e.g. measureText())
+3. Segmentation (line breaking, RTL direction, styles, clusters, etc…)
+4. Hit testing
+5. Caret positioning
+6. Selection rectangles
+7. Justification
+
 ## API purpose
 
 Extend the capabilities of `CanvasRenderingContext2D` to support text shaping and layout. This would additionally enable precise caret positioning, hit testing and text selection rectangles calculations.
@@ -12,7 +24,7 @@ Extend the capabilities of `CanvasRenderingContext2D` to support text shaping an
 
 Google has put forward a [proposal](https://github.com/fserb/canvas2D/blob/master/spec/enhanced-textmetrics.md) that targets a single, focused problem: computing [grapheme cluster boundaries](https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries). These boundaries would then be honored consistently across display, hit-testing, caret positioning, and selection rectangle calculations—enabling clusters to be drawn in isolation.
 
-The proposal works by extending TextMetrics with the ability to compute text clusters. Each cluster internally holds—without exposing—its text, glyphs, advance, and font. 
+The proposal works by extending `TextMetrics` with the ability to compute text clusters. Each cluster internally holds—without exposing—its text, glyphs, advance, and font. 
 
 This is how their API would support drawing text one cluster at a time.
 
@@ -34,7 +46,7 @@ This proposal solves a single problem and gives no indication of how it might be
 
 1. **Not extensible**. Everything happens in a single step via `getTextClusters()`, using whatever style is currently selected. Clients have no opportunity to intervene before shaping to achieve, for example, custom rendering.
 2. **No support for rich text**. The proposal doesn't handle text where multiple fonts or colors are applied within a single line.
-3. **Extends the wrong object**. It extends `TextMetrics` and has it own both the text and its shaping information. Today, `TextMetrics` simply returns the geometry of measured text—we believe `CanvasText` is the more appropriate place to add text-shaping support.
+3. **Extends the wrong object**. It extends `TextMetrics` and has it own both the text and its shaping information. Today, `TextMetrics` simply returns the geometry of measured text—we believe `CanvasText` is the more appropriate place to add text-shaping support. Extending `CanvasText` allows multi-styled text to be processed.
 4. **Inefficient for uniform styling**. Even when text shares the same font and color throughout, the client is still forced to render it cluster by cluster.
 
 ## WebKit proposal
@@ -541,7 +553,9 @@ const styles = [
     { start:  76, font: 'bold 32px Times', color: 'brown' },
     { start:  82, font: '32px Times', color: 'black' }
 ];
-fillWrappedJustifiedTextWithStyles(ctx, text, 0, 0, styles, 480, 40);
+const lineWidth = 480;
+const lineHeight = 40;
+fillWrappedJustifiedTextWithStyles(ctx, text, 0, 0, styles, lineWidth, lineHeight);
 ```
 
 The result of using this function can be something like this screenshot
@@ -552,6 +566,6 @@ This proposal offers the following advantages:
 
 1. **More efficient:** It avoids processing text cluster by cluster—an entire line of Latin text sharing the same style can be displayed as a single GlyphRun.
 2. **Easy extensibility:** It splits text processing into separate operations, and this separation enables custom layout and shaping.
-3. **Proper extension point:** Extending CanvasText allows multi-styled text to be processed.
+3. **Proper extension point:** Extending `CanvasText` allows multi-styled text to be processed.
 4. **Handles complex scenarios simply:** It can handle complex scenarios like text wrapping while keeping the client's code simple.
 
